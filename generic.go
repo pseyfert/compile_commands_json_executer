@@ -61,7 +61,7 @@ func main() {
 	pflag.Parse()
 	var err error
 
-	remove := make([]*regexp.Regexp, len(*removeflag))
+	remove := make([]*regexp.Regexp, 0, len(*removeflag))
 	if len(*removeflag) > 0 {
 		for _, r := range *removeflag {
 			rexp, err := regexp.Compile(r)
@@ -100,7 +100,7 @@ func main() {
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
 	all_parsedDB, err := ProcessJsonByBytes(byteValue, false, dbdir)
-	use_parsedDB := make([]CompilerCall, len(all_parsedDB))
+	use_parsedDB := make([]CompilerCall, 0, len(all_parsedDB))
 
 	cmdpipe, outpipe := workpool.Workpool(*concurrency)
 
@@ -115,7 +115,7 @@ func main() {
 		}
 
 		if len(remove) > 0 {
-			tmpargs := make([]string, len(v.Args))
+			tmpargs := make([]string, 0, len(v.Args))
 		argloop:
 			for _, a := range v.Args {
 				for _, r := range remove {
@@ -134,7 +134,7 @@ func main() {
 	}
 
 	myenv := os.Environ()
-	newenv := make([]string, len(myenv))
+	newenv := make([]string, 0, len(myenv))
 envloop:
 	for _, e := range myenv {
 		tmp := strings.Split(e, "=")
@@ -150,8 +150,8 @@ envloop:
 
 	go func() {
 		for _, v := range use_parsedDB {
-			tmp := make([]string, len(v.Exe)+len(v.Args))
-			tmp = v.Exe[1:len(v.Exe)]
+			tmp := make([]string, 0, len(v.Exe)+len(v.Args))
+			tmp = append(tmp, v.Exe[1:len(v.Exe)]...)
 			tmp = append(tmp, v.Args...)
 			cmd := exec.Command(v.Exe[0], tmp...)
 			cmd.Env = newenv
@@ -177,7 +177,7 @@ func ProcessJsonByBytes(inFileContent []byte, turnAbsolute bool, dbdir string) (
 	var db []cc2ce.JsonTranslationunit
 	json.Unmarshal(inFileContent, &db)
 
-	retval := make([]CompilerCall, len(db))
+	retval := make([]CompilerCall, 0, len(db))
 
 	for _, tu := range db {
 		still_exe := true
