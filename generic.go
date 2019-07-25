@@ -99,11 +99,12 @@ func main() {
 	defer jsonFile.Close()
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
-	parsedDB, err := ProcessJsonByBytes(byteValue, false, dbdir)
+	all_parsedDB, err := ProcessJsonByBytes(byteValue, false, dbdir)
+	use_parsedDB := make([]CompilerCall, len(all_parsedDB))
 
 	cmdpipe, outpipe := workpool.Workpool(*concurrency)
 
-	for k, v := range parsedDB {
+	for _, v := range all_parsedDB {
 		if filter != nil {
 			if !filter.MatchString(v.InFile) {
 				continue
@@ -129,7 +130,7 @@ func main() {
 
 		v.Args = append(v.Args, *appends...)
 		v.Args = append(*prepends, v.Args...)
-		parsedDB[k] = v
+		use_parsedDB = append(use_parsedDB, v)
 	}
 
 	myenv := os.Environ()
@@ -148,7 +149,7 @@ envloop:
 	}
 
 	go func() {
-		for _, v := range parsedDB {
+		for _, v := range use_parsedDB {
 			tmp := make([]string, len(v.Exe)+len(v.Args))
 			tmp = v.Exe[1:len(v.Exe)]
 			tmp = append(tmp, v.Args...)
@@ -160,7 +161,7 @@ envloop:
 		close(cmdpipe)
 	}()
 
-	workpool.DrawProgress(outpipe, len(parsedDB))
+	workpool.DrawProgress(outpipe, len(use_parsedDB))
 
 }
 
