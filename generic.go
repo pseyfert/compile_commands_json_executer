@@ -45,8 +45,6 @@ import (
 	"github.com/phayes/permbits"
 	"github.com/pseyfert/compilecommands_to_compilerexplorer/cc2ce"
 	"github.com/pseyfert/go-workpool"
-
-	"github.com/schollz/progressbar"
 )
 
 func main() {
@@ -134,9 +132,6 @@ func main() {
 		parsedDB[k] = v
 	}
 
-	bar := progressbar.New(len(parsedDB))
-	bar.RenderBlank()
-
 	myenv := os.Environ()
 	newenv := make([]string, len(myenv))
 envloop:
@@ -159,12 +154,13 @@ envloop:
 			tmp = append(tmp, v.Args...)
 			cmd := exec.Command(v.Exe[0], tmp...)
 			cmd.Env = newenv
+			cmd.Dir = v.Dir
 			cmdpipe <- cmd
 		}
 		close(cmdpipe)
 	}()
 
-	workpool.DefaultPrint(outpipe)
+	workpool.DrawProgress(outpipe, len(parsedDB))
 
 }
 
@@ -224,20 +220,20 @@ func ProcessJsonByBytes(inFileContent []byte, turnAbsolute bool, dbdir string) (
 					inc = filepath.Join(call.Dir, inc)
 				}
 				call.Args = append(call.Args, fmt.Sprintf("-I%s", inc))
-			}
-			if w == "-isystem" {
+			} else if w == "-isystem" {
 				inc := words[j+1]
 				if !filepath.IsAbs(inc) && turnAbsolute {
 					inc = filepath.Join(call.Dir, inc)
 				}
 				call.Args = append(call.Args, "-isystem", inc)
 				skip_next = true
-			}
-			if strings.HasPrefix(w, "-D") {
+			} else if strings.HasPrefix(w, "-D") {
 				call.Args = append(call.Args, strings.Replace(w, "\\\"", "\"", 2))
 			} else if strings.HasPrefix(w, "-p") {
 				call.Args = append(call.Args, w)
 			} else if strings.HasPrefix(w, "-O") {
+				call.Args = append(call.Args, w)
+			} else if strings.HasPrefix(w, "-g") {
 				call.Args = append(call.Args, w)
 			} else if strings.HasPrefix(w, "-m") {
 				call.Args = append(call.Args, w)
