@@ -56,7 +56,7 @@ func main() {
 	exe := pflag.String("cmd", "", "command to run instead of the regular compiler")
 	filterflag := pflag.String("filter", "", "source files to run on")
 	env := pflag.StringToString("env", map[string]string{}, "prepend values to environment variables")
-	_ = pflag.StringToString("replace", map[string]string{}, "replace arguments")
+	replaceflag := pflag.StringToString("replace", map[string]string{}, "replace arguments")
 	concurrency := pflag.Int("j", 1, "concurrency")
 	pflag.Parse()
 	var err error
@@ -82,6 +82,16 @@ func main() {
 		}
 	} else {
 		filter = nil
+	}
+
+	replaces := make(map[*regexp.Regexp]string)
+	for k, v := range *replaceflag {
+		re, err := regexp.Compile(k)
+		replaces[re] = v
+		if err != nil {
+			log.Printf("could not parse replacement expression %s: %v", k, err)
+			os.Exit(1)
+		}
 	}
 
 	infile, err = filepath.Abs(infile)
@@ -126,6 +136,14 @@ func main() {
 				tmpargs = append(tmpargs, a)
 			}
 			v.Args = tmpargs
+		}
+
+		if len(replaces) > 0 {
+			for i, arg := range v.Args {
+				for exp, repl := range replaces {
+					v.Args[i] = exp.ReplaceAllString(arg, repl)
+				}
+			}
 		}
 
 		v.Args = append(v.Args, *appends...)
