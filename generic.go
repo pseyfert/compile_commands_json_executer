@@ -152,18 +152,28 @@ func main() {
 	}
 
 	myenv := os.Environ()
-	newenv := make([]string, 0, len(myenv))
-envloop:
-	for _, e := range myenv {
-		tmp := strings.Split(e, "=")
-		k_e, v_e := tmp[0], tmp[1]
+	if len(*env) > 0 {
+		newenv := make([]string, 0, len(myenv))
+		checkmarks := make(map[string]bool)
+	envloop:
+		for _, e := range myenv {
+			tmp := strings.Split(e, "=")
+			k_e, v_e := tmp[0], tmp[1]
+			for k_m, v_m := range *env {
+				if k_m == k_e {
+					newenv = append(newenv, fmt.Sprintf("%s=%s:%s", k_m, v_m, v_e))
+					checkmarks[k_m] = true
+					continue envloop
+				}
+			}
+			newenv = append(newenv, fmt.Sprintf("%s=%s", k_e, v_e))
+		}
 		for k_m, v_m := range *env {
-			if k_m == k_e {
-				newenv = append(newenv, fmt.Sprintf("%s=%s:%s", k_m, v_m, v_e))
-				continue envloop
+			if _, ok := checkmarks[k_m]; !ok {
+				newenv = append(newenv, fmt.Sprintf("%s=%s", k_m, v_m))
 			}
 		}
-		newenv = append(newenv, fmt.Sprintf("%s=%s", k_e, v_e))
+		myenv = newenv
 	}
 
 	go func() {
@@ -172,7 +182,7 @@ envloop:
 			tmp = append(tmp, v.Exe[1:len(v.Exe)]...)
 			tmp = append(tmp, v.Args...)
 			cmd := exec.Command(v.Exe[0], tmp...)
-			cmd.Env = newenv
+			cmd.Env = myenv
 			cmd.Dir = v.Dir
 			cmdpipe <- cmd
 		}
