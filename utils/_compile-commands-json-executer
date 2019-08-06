@@ -1,0 +1,58 @@
+#compdef compile_commands_json_executer
+
+# Copyright (c) 2019, CERN for the benefit of the LHCb collaboration
+# Author: Paul Seyfert <pseyfert@cern.ch>
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the <organization> nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+typeset -A opt_args
+
+__executor_extra_arg() {
+  # Without the following manipulation, the _gcc (clang) completion gets thrown off
+  # and can't complete gcc arguments in
+  #
+  # clangd-indexer -extra-arg=-fdiagnostics-color=<TAB>
+  #
+  # Only a shortened command line is passed to the clang completion, as most of the
+  # clang arguments are hidden anyway (stored inside the compile_commands.json file).
+
+  # provide completion for clang++ in case --cmd isn't sprecified yet.
+  words=(${opt_args[--cmd]:-clang++} $PREFIX)
+  CURRENT=2
+  local ret
+  _call_function ret $_comps[clang]
+  return $ret
+}
+
+_arguments \
+  '--cmd=[command to run instead of the regular compiler]:compiler: _command_names -e' \
+  '*--extra-arg=[Additional argument to append to the compiler command line]:extra arguments: __executor_extra_arg' \
+  '*--extra-arg-before=[Additional argument to prepend d to the compiler command line]:extra arguments: __executor_extra_arg' \
+  '--i[input compile_commands.json database]:input database: _files -g "*.json"' \
+  '--filter=[source files to run on]:regexp:' \
+  '--j[concurrency]:concurrency level:' \
+  '*--remove-filter=[arguments to remove from the command line]:regexp:' \
+  '*--replace=[replace command line arguments]:golang regexp, trail with = and use $1 for the first match:' \
+  '*--env=[prepend values to environment variables]:parameter:_typeset'
