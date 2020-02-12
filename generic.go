@@ -42,6 +42,8 @@ import (
 
 	"github.com/spf13/pflag"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/phayes/permbits"
 	"github.com/pseyfert/compilecommands_to_compilerexplorer/cc2ce"
 	"github.com/pseyfert/go-workpool"
@@ -54,7 +56,8 @@ func main() {
 	prepends := pflag.StringArray("extra-arg-before", []string{}, "additional arguments to prepend to the command line")
 	removeflag := pflag.StringArray("remove-filter", []string{}, "arguments to remove from the command line")
 	exe := pflag.String("cmd", "", "command to run instead of the regular compiler")
-	filterflag := pflag.String("filter", "", "source files to run on")
+	acceptfilterflag := pflag.String("accept-filter", "", "source files to run on")
+	rejectfilterflag := pflag.String("reject-filter", "", "source files not to run on")
 	env := pflag.StringToString("env", map[string]string{}, "prepend values to environment variables")
 	replaceflag := pflag.StringToString("replace", map[string]string{}, "replace arguments")
 	concurrency := pflag.Int("j", 1, "concurrency")
@@ -73,15 +76,26 @@ func main() {
 		}
 	}
 
-	var filter *regexp.Regexp
-	if *filterflag != "" {
-		filter, err = regexp.Compile(*filterflag)
+	var rejectfilter *regexp.Regexp
+	if *rejectfilterflag != "" {
+		rejectfilter, err = regexp.Compile(*rejectfilterflag)
 		if err != nil {
-			log.Printf("could not parse filter expression %s: %v", *filterflag, err)
+			log.Printf("could not parse reject filter expression %s: %v", *rejectfilterflag, err)
 			os.Exit(1)
 		}
 	} else {
-		filter = nil
+		rejectfilter = nil
+	}
+
+	var acceptfilter *regexp.Regexp
+	if *acceptfilterflag != "" {
+		acceptfilter, err = regexp.Compile(*acceptfilterflag)
+		if err != nil {
+			log.Printf("could not parse accept filter expression %s: %v", *acceptfilterflag, err)
+			os.Exit(1)
+		}
+	} else {
+		acceptfilter = nil
 	}
 
 	replaces := make(map[*regexp.Regexp]string)
@@ -115,8 +129,13 @@ func main() {
 	cmdpipe, outpipe := workpool.Workpool(*concurrency)
 
 	for _, v := range all_parsedDB {
-		if filter != nil {
-			if !filter.MatchString(v.InFile) {
+		if acceptfilter != nil {
+			if !acceptfilter.MatchString(v.InFile) {
+				continue
+			}
+		}
+		if rejectfilter != nil {
+			if rejectfilter.MatchString(v.InFile) {
 				continue
 			}
 		}
@@ -189,8 +208,11 @@ func main() {
 		close(cmdpipe)
 	}()
 
-	workpool.DrawProgress(outpipe, len(use_parsedDB))
-
+	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		workpool.DrawProgress(outpipe, len(use_parsedDB))
+	} else {
+		workpool.DefaultPrint(outpipe)
+	}
 }
 
 type CompilerCall struct {
