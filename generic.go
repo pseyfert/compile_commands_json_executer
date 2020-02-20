@@ -56,8 +56,8 @@ func main() {
 	prepends := pflag.StringArray("extra-arg-before", []string{}, "additional arguments to prepend to the command line")
 	removeflag := pflag.StringArray("remove-filter", []string{}, "arguments to remove from the command line")
 	exe := pflag.String("cmd", "", "command to run instead of the regular compiler")
-	acceptfilterflag := pflag.String("accept-filter", "", "source files to run on")
-	rejectfilterflag := pflag.String("reject-filter", "", "source files not to run on")
+	acceptfilterflag := pflag.StringArray("accept-filter", []string{}, "source files to run on (regex, can be used multiple times, must match at least one regex for acceptance)")
+	rejectfilterflag := pflag.StringArray("reject-filter", []string{}, "source files not to run on (regex, can be used multiple times, must match at least one regex for rejection, rejection trumps acceptance)")
 	env := pflag.StringToString("env", map[string]string{}, "prepend values to environment variables")
 	replaceflag := pflag.StringToString("replace", map[string]string{}, "replace arguments")
 	concurrency := pflag.Int("j", 1, "concurrency")
@@ -76,26 +76,28 @@ func main() {
 		}
 	}
 
-	var rejectfilter *regexp.Regexp
-	if *rejectfilterflag != "" {
-		rejectfilter, err = regexp.Compile(*rejectfilterflag)
-		if err != nil {
-			log.Printf("could not parse reject filter expression %s: %v", *rejectfilterflag, err)
-			os.Exit(1)
+	rejectfilter := make([]*regexp.Regexp, 0, len(*rejectfilterflag))
+	if len(*rejectfilterflag) != 0 {
+		for _, r := range *rejectfilterflag {
+			rf, err := regexp.Compile(r)
+			if err != nil {
+				log.Printf("could not parse reject filter expression %s: %v", r, err)
+				os.Exit(1)
+			}
+			rejectfilter = append(rejectfilter, rf)
 		}
-	} else {
-		rejectfilter = nil
 	}
 
-	var acceptfilter *regexp.Regexp
-	if *acceptfilterflag != "" {
-		acceptfilter, err = regexp.Compile(*acceptfilterflag)
-		if err != nil {
-			log.Printf("could not parse accept filter expression %s: %v", *acceptfilterflag, err)
-			os.Exit(1)
+	acceptfilter := make([]*regexp.Regexp, 0, len(*acceptfilterflag))
+	if len(*acceptfilterflag) != 0 {
+		for _, a := range *acceptfilterflag {
+			af, err := regexp.Compile(a)
+			if err != nil {
+				log.Printf("could not parse accept filter expression %s: %v", a, err)
+				os.Exit(1)
+			}
+			acceptfilter = append(acceptfilter, af)
 		}
-	} else {
-		acceptfilter = nil
 	}
 
 	replaces := make(map[*regexp.Regexp]string)
@@ -128,15 +130,22 @@ func main() {
 
 	cmdpipe, outpipe := workpool.Workpool(*concurrency)
 
+dbloop:
 	for _, v := range all_parsedDB {
-		if acceptfilter != nil {
-			if !acceptfilter.MatchString(v.InFile) {
-				continue
+		if len(acceptfilter) != 0 {
+			for _, af := range acceptfilter {
+				if af.MatchString(v.InFile) {
+					goto accepted
+				}
 			}
+			continue dbloop
 		}
-		if rejectfilter != nil {
-			if rejectfilter.MatchString(v.InFile) {
-				continue
+	accepted:
+		if len(rejectfilter) != 0 {
+			for _, rf := range rejectfilter {
+				if rf.MatchString(v.InFile) {
+					continue dbloop
+				}
 			}
 		}
 		if *exe != "" {
