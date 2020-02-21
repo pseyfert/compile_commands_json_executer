@@ -30,9 +30,11 @@ go run github.com/pseyfert/compile_commands_json_executer --remove-filter='-c' -
  - concurrency: `-j 4` to run with 4 thread
  - relative path handling: the working directory of the compiler call shall be the one specified in the compilation database. Relative paths therein should just work.
  - limitted compiler launcher tool detection: when using a compiler launcher in the database like `ccache g++`, the combination of them is detected as "executable". It won't be replaced to `cxx_extractor g++` but instead to `cxx_extractor`.
- - many arguments can occur repeatedly, such as `--extra-arg` to add multiple arguments
+ - many arguments can occur repeatedly, such as `--extra-arg` and `--extra-arg-before` to add multiple arguments (they maintain the order in which they appear, i.e. the first `--extra-arg-before` will be the first argument)
+ - `--trace` will write a json file that can be opened with the chrome webbrowser on the `chrome://tracing` page to visualize which processes launch when.
+ - see also the output of `--help`
 
 ### what's not there
 
  - multi word argument treatment: file name replacements for output files (e.g. `-o /some/outfile` or `-MF /some/other`) can not be done as the `replace` and `remove-filter` options go through the command line word by word and can't jump over the space after `-o`
- - compiler launchers for the replacement executable (i.e. `--cmd="ccache clang++"` won't work)
+ - compiler launchers for the replacement executable (i.e. `--cmd="ccache clang++"` won't work). But they can be worked around with `--cmd="ccache" --extra-arg-before "clang++"`
