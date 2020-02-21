@@ -133,19 +133,13 @@ func main() {
 dbloop:
 	for _, v := range all_parsedDB {
 		if len(acceptfilter) != 0 {
-			for _, af := range acceptfilter {
-				if af.MatchString(v.InFile) {
-					goto accepted
-				}
+			if nomatch(acceptfilter, v.InFile) {
+				continue dbloop
 			}
-			continue dbloop
 		}
-	accepted:
 		if len(rejectfilter) != 0 {
-			for _, rf := range rejectfilter {
-				if rf.MatchString(v.InFile) {
-					continue dbloop
-				}
+			if anymatch(rejectfilter, v.InFile) {
+				continue dbloop
 			}
 		}
 		if *exe != "" {
@@ -156,10 +150,8 @@ dbloop:
 			tmpargs := make([]string, 0, len(v.Args))
 		argloop:
 			for _, a := range v.Args {
-				for _, r := range remove {
-					if r.MatchString(a) {
-						continue argloop
-					}
+				if anymatch(remove, a) {
+					continue argloop
 				}
 				tmpargs = append(tmpargs, a)
 			}
