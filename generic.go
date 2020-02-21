@@ -32,6 +32,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -61,9 +62,19 @@ func main() {
 	env := pflag.StringToString("env", map[string]string{}, "prepend values to environment variables")
 	replaceflag := pflag.StringToString("replace", map[string]string{}, "replace arguments")
 	concurrency := pflag.Int("j", 1, "concurrency")
+	tracefname := pflag.String("trace", "", "trace filename (won't trace if empty string)")
 	pflag.Parse()
 	var err error
 
+	var tracefile io.Writer = nil
+	if *tracefname != "" {
+		f, err := os.Create(*tracefname)
+		tracefile = f
+		if err != nil {
+			log.Printf("couldn't create trace file: %v\n", err)
+			os.Exit(1)
+		}
+	}
 	remove := make([]*regexp.Regexp, 0, len(*removeflag))
 	if len(*removeflag) > 0 {
 		for _, r := range *removeflag {
@@ -128,7 +139,7 @@ func main() {
 	all_parsedDB, err := ProcessJsonByBytes(byteValue, false, dbdir)
 	use_parsedDB := make([]CompilerCall, 0, len(all_parsedDB))
 
-	cmdpipe, outpipe := workpool.Workpool(*concurrency)
+	cmdpipe, outpipe := workpool.Workpool(*concurrency, tracefile)
 
 dbloop:
 	for _, v := range all_parsedDB {
