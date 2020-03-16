@@ -121,10 +121,13 @@ func (e *Executer) Run(infile string) error {
 
 	jsonFile, err := os.Open(infile)
 	if err != nil {
-		return fmt.Errorf("sigh: %v", err)
+		return fmt.Errorf("couldn't open input compile_commands.json file: %v", err)
 	}
 	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return fmt.Errorf("couldn't read input compile_commands.json file: %v", err)
+	}
 
 	all_parsedDB, err := ProcessJsonByBytes(byteValue, false, dbdir)
 	use_parsedDB := make([]CompilerCall, 0, len(all_parsedDB))
