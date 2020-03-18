@@ -124,6 +124,7 @@ func (e *Executer) Run(infile string) error {
 		return fmt.Errorf("couldn't open input compile_commands.json file: %v", err)
 	}
 	defer jsonFile.Close()
+	log.Printf("opened %s for processing\n", infile)
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
 		return fmt.Errorf("couldn't read input compile_commands.json file: %v", err)
