@@ -61,6 +61,31 @@ type Executer struct {
 	TraceFile   string
 }
 
+type DecoratedRun struct {
+	realcmd *exec.Cmd
+	name    string
+}
+
+func (d DecoratedRun) Cat() string {
+	return "target"
+}
+
+func (d *DecoratedRun) Name() string {
+	return d.name
+}
+
+func (d *DecoratedRun) Run() error {
+	return d.realcmd.Run()
+}
+
+func (d *DecoratedRun) SetStderr(w io.Writer) {
+	d.realcmd.Stderr = w
+}
+
+func (d *DecoratedRun) SetStdout(w io.Writer) {
+	d.realcmd.Stdout = w
+}
+
 func (e *Executer) Run(infile string) error {
 	var err error
 	var tracefile io.Writer = nil
@@ -209,7 +234,8 @@ dbloop:
 			cmd := exec.Command(v.Exe[0], tmp...)
 			cmd.Env = myenv
 			cmd.Dir = v.Dir
-			cmdpipe <- cmd
+			sendout := DecoratedRun{realcmd: cmd, name: v.OutFile}
+			cmdpipe <- &sendout
 		}
 		close(cmdpipe)
 	}()
